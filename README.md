@@ -46,9 +46,9 @@ Open your browser and go to: **http://localhost:5000**
 ## 🎯 Test the Platform
 
 ### Create Test Accounts:
-1. **Project Owner**: Register → Username: `owner1` → Role: "Project Owner"
-2. **Bidder**: Register → Username: `bidder1` → Role: "Bidder/Contractor"  
-3. **Admin**: Register → Username: `admin1` → Role: "Administrator"
+1. **Project Owner**: Register → Username: `raj`, Password: `raj123` → Role: "Project Owner"
+2. **Bidder**: Register → Username: `ravi`, Password: `ravi123` → Role: "Bidder/Contractor"  
+3. **Admin**: Register → Username: `kiran`, Password: `kiran123` → Role: "Administrator"
 
 ### Test Workflow:
 1. **Owner**: Create an RFQ with project details
