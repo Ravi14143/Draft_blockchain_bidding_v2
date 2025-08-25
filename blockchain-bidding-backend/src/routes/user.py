@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, session
 from src.models.user import User, RFQ, Bid, Project, Milestone, db
+from blockchain.contract_service import create_rfq_onchain, str_keccak, to_unix_seconds
 from functools import wraps
 
 user_bp = Blueprint('user', __name__)
@@ -69,16 +70,47 @@ def get_rfqs():
 @role_required('owner')
 def create_rfq():
     data = request.json
-    rfq = RFQ(
-        owner_id=session['user_id'],
-        title=data['title'],
-        scope=data['scope'],
-        deadline=data['deadline'],
-        evaluation_criteria=data['evaluation_criteria']
-    )
-    db.session.add(rfq)
-    db.session.commit()
-    return jsonify(rfq.to_dict()), 201
+
+    # On-chain transaction
+    try:
+        deadline_secs = to_unix_seconds(data.get('deadline'))
+        scope_hash = str_keccak(data.get('scope', ''))
+
+        onchain = create_rfq_onchain(
+            title=data.get('title', ''),
+            scope_hash=scope_hash,
+            deadline_secs=deadline_secs,
+            category=data.get('category', ''),
+            budget=int(data.get('budget_max') or data.get('budget_min') or 0),
+            location=data.get('location', '')
+        )
+
+        rfq = RFQ(
+            owner_id=session['user_id'],
+            title=data.get('title', ''),
+            scope=data.get('scope', ''),
+            deadline=data.get('deadline', ''),
+            evaluation_criteria=data.get('evaluation_criteria', ''),
+            category=data.get('category'),
+            budget_min=data.get('budget_min'),
+            budget_max=data.get('budget_max'),
+            publish_date=data.get('publish_date'),
+            clarification_deadline=data.get('clarification_deadline'),
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            eligibility_requirements=data.get('eligibility_requirements'),
+            evaluation_weights=data.get('evaluation_weights'),
+            onchain_id=onchain["rfqId"],
+            tx_hash=onchain["txHash"]
+        )
+
+        db.session.add(rfq)
+        db.session.commit()
+
+        return jsonify(rfq.to_dict()), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/rfqs/<int:rfq_id>', methods=['GET'])
 @login_required
@@ -209,3 +241,39 @@ def delete_user(user_id):
 
 
 
+@user_bp.route('/dashboard', methods=['GET'])
+@login_required
+def dashboard():
+    user = User.query.get(session['user_id'])
+    
+    if user.role == "owner":
+        rfqs = RFQ.query.filter_by(owner_id=user.id).all()
+        projects = Project.query.join(RFQ).filter(RFQ.owner_id == user.id).all()
+        return jsonify({
+            "role": "owner",
+            "rfq_count": len(rfqs),
+            "project_count": len(projects),
+            "rfqs": [rfq.to_dict() for rfq in rfqs],
+            "projects": [p.to_dict() for p in projects]
+        })
+    
+    elif user.role == "bidder":
+        bids = Bid.query.filter_by(bidder_id=user.id).all()
+        projects = Project.query.join(Bid).filter(Bid.bidder_id == user.id).all()
+        return jsonify({
+            "role": "bidder",
+            "bid_count": len(bids),
+            "project_count": len(projects),
+            "bids": [bid.to_dict() for bid in bids],
+            "projects": [p.to_dict() for p in projects]
+        })
+
+    elif user.role == "admin":
+        users = User.query.all()
+        return jsonify({
+            "role": "admin",
+            "user_count": len(users),
+            "users": [u.to_dict() for u in users]
+        })
+
+    return jsonify({"error": "Unknown role"}), 400

@@ -1,4 +1,4 @@
-// src/pages/CreateRFQ.jsx
+// src/components/owner/CreateRFQ.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,9 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, Save } from 'lucide-react'
-
-// ✅ import blockchain helpers
-import { createRFQ as createRFQOnChain } from '@/web3/rfq'
 
 export default function CreateRFQ() {
   const navigate = useNavigate()
@@ -26,7 +23,8 @@ export default function CreateRFQ() {
     start_date: '',
     end_date: '',
     eligibility_requirements: '',
-    evaluation_weights: ''
+    evaluation_weights: '',
+    location: ''
   })
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(false)
@@ -36,39 +34,11 @@ export default function CreateRFQ() {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
-      // ✅ First: call smart contract
-      const onchainResult = await createRFQOnChain({
-        title: formData.title,
-        scope: formData.scope,
-        deadline: formData.deadline,
-        evaluationCriteria: formData.evaluation_criteria,
-        budget: formData.budget_max || formData.budget_min || '0',
-        category: formData.category,
-        location: '' // optional field in contract
-      })
-
-      console.log("On-chain RFQ created:", onchainResult)
-
-      // ✅ Build metadata for backend
-      const metadata = {
-        ...formData,
-        onchain_id: onchainResult.rfqId,   // include blockchain ID
-        tx_hash: onchainResult.txHash,     // keep tx hash for reference
-        budget_min: formData.budget_min || null,
-        budget_max: formData.budget_max || null,
-        publish_date: formData.publish_date || null,
-        clarification_deadline: formData.clarification_deadline || null,
-        start_date: formData.start_date || null,
-        end_date: formData.end_date || null,
-        evaluation_weights: formData.evaluation_weights
-      }
-
       let response
       if (files.length > 0) {
         const fd = new FormData()
-        fd.append('metadata', JSON.stringify(metadata))
+        fd.append('metadata', JSON.stringify(formData))
         files.forEach(f => fd.append('files', f))
         response = await fetch('http://127.0.0.1:5000/api/rfqs', {
           method: 'POST',
@@ -80,20 +50,17 @@ export default function CreateRFQ() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify(metadata)
+          body: JSON.stringify(formData)
         })
       }
-
       if (!response.ok) {
         const err = await response.json()
         throw new Error(err.error || 'Failed to create RFQ')
       }
-
       const rfq = await response.json()
       alert(`✅ RFQ created. On-chain ID: ${rfq.onchain_id}, Tx: ${rfq.tx_hash}`)
       navigate(`/dashboard/rfqs/${rfq.id}`)
     } catch (err) {
-      console.error("CreateRFQ error:", err)
       setError(err.message || 'Network error. Please try again.')
     } finally {
       setLoading(false)
@@ -122,10 +89,8 @@ export default function CreateRFQ() {
           <CardTitle>RFQ Details</CardTitle>
           <CardDescription>Provide comprehensive information about your project requirements</CardDescription>
         </CardHeader>
-
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Title, Category, Budget */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">Project Title *</Label>
@@ -145,19 +110,16 @@ export default function CreateRFQ() {
               </div>
             </div>
 
-            {/* Scope */}
             <div>
               <Label htmlFor="scope">Project Scope *</Label>
               <Textarea id="scope" name="scope" value={formData.scope} onChange={handleChange} rows={6} required />
             </div>
 
-            {/* Evaluation criteria */}
             <div>
               <Label htmlFor="evaluation_criteria">Evaluation Criteria *</Label>
               <Textarea id="evaluation_criteria" name="evaluation_criteria" value={formData.evaluation_criteria} onChange={handleChange} rows={4} required />
             </div>
 
-            {/* Deadlines */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Submission Deadline *</Label>
@@ -169,7 +131,6 @@ export default function CreateRFQ() {
               </div>
             </div>
 
-            {/* Project dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Project Start Date</Label>
@@ -181,7 +142,6 @@ export default function CreateRFQ() {
               </div>
             </div>
 
-            {/* Eligibility + weights */}
             <div>
               <Label>Eligibility Requirements</Label>
               <Textarea name="eligibility_requirements" value={formData.eligibility_requirements} onChange={handleChange} rows={3} />
@@ -190,21 +150,22 @@ export default function CreateRFQ() {
               <Label>Evaluation Weights</Label>
               <Input name="evaluation_weights" value={formData.evaluation_weights} onChange={handleChange} placeholder="e.g. Price 40%, Technical 40%, Experience 20%" />
             </div>
+            <div>
+              <Label>Location</Label>
+              <Input name="location" value={formData.location} onChange={handleChange} placeholder="Optional short location" />
+            </div>
 
-            {/* Files */}
             <div>
               <Label>Attach Supporting Documents</Label>
               <Input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files))} className="cursor-pointer" />
             </div>
 
-            {/* Error */}
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex justify-end space-x-4">
               <Button type="button" variant="outline" onClick={() => navigate('/dashboard/rfqs')}>
                 Cancel

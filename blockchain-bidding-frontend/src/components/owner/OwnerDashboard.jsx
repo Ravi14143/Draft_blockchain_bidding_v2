@@ -1,18 +1,19 @@
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Link } from 'react-router-dom'
-import { Plus, FileText, Briefcase, Users, TrendingUp } from 'lucide-react'
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Link } from "react-router-dom"
+import { Plus, FileText, Briefcase, Users, TrendingUp } from "lucide-react"
 
 export default function OwnerDashboard() {
   const [stats, setStats] = useState({
     totalRFQs: 0,
     activeRFQs: 0,
     totalProjects: 0,
-    totalBids: 0
+    totalBids: 0,
   })
   const [recentRFQs, setRecentRFQs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -20,26 +21,31 @@ export default function OwnerDashboard() {
 
   const fetchDashboardData = async () => {
     try {
+      // 👇 use full URL if you don’t have a proxy
       const [rfqsResponse, projectsResponse] = await Promise.all([
-        fetch('/api/rfqs', { credentials: 'include' }),
-        fetch('/api/projects', { credentials: 'include' })
+        fetch("http://127.0.0.1:5000/api/rfqs", { credentials: "include" }),
+        fetch("http://127.0.0.1:5000/api/projects", { credentials: "include" })
+
       ])
 
-      if (rfqsResponse.ok && projectsResponse.ok) {
-        const rfqs = await rfqsResponse.json()
-        const projects = await projectsResponse.json()
-
-        setStats({
-          totalRFQs: rfqs.length,
-          activeRFQs: rfqs.filter(rfq => rfq.status === 'open').length,
-          totalProjects: projects.length,
-          totalBids: rfqs.reduce((acc, rfq) => acc + (rfq.bids?.length || 0), 0)
-        })
-
-        setRecentRFQs(rfqs.slice(0, 5))
+      if (!rfqsResponse.ok || !projectsResponse.ok) {
+        throw new Error("API request failed")
       }
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
+
+      const rfqs = await rfqsResponse.json()
+      const projects = await projectsResponse.json()
+
+      setStats({
+        totalRFQs: rfqs.length,
+        activeRFQs: rfqs.filter((rfq) => rfq.status === "open").length,
+        totalProjects: projects.length,
+        totalBids: rfqs.reduce((acc, rfq) => acc + (rfq.bids?.length || 0), 0),
+      })
+
+      setRecentRFQs(rfqs.slice(0, 5))
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err)
+      setError("Failed to load dashboard. Please check API.")
     } finally {
       setLoading(false)
     }
@@ -49,6 +55,14 @@ export default function OwnerDashboard() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading dashboard...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500 text-lg">{error}</div>
       </div>
     )
   }
@@ -74,9 +88,7 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalRFQs}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.activeRFQs} currently active
-            </p>
+            <p className="text-xs text-muted-foreground">{stats.activeRFQs} currently active</p>
           </CardContent>
         </Card>
 
@@ -87,9 +99,7 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
-              Projects in progress
-            </p>
+            <p className="text-xs text-muted-foreground">Projects in progress</p>
           </CardContent>
         </Card>
 
@@ -100,9 +110,7 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalBids}</div>
-            <p className="text-xs text-muted-foreground">
-              Received across all RFQs
-            </p>
+            <p className="text-xs text-muted-foreground">Received across all RFQs</p>
           </CardContent>
         </Card>
 
@@ -113,11 +121,12 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.totalRFQs > 0 ? Math.round((stats.totalProjects / stats.totalRFQs) * 100) : 0}%
+              {stats.totalRFQs > 0
+                ? Math.round((stats.totalProjects / stats.totalRFQs) * 100)
+                : 0}
+              %
             </div>
-            <p className="text-xs text-muted-foreground">
-              RFQs converted to projects
-            </p>
+            <p className="text-xs text-muted-foreground">RFQs converted to projects</p>
           </CardContent>
         </Card>
       </div>
@@ -126,9 +135,7 @@ export default function OwnerDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Recent RFQs</CardTitle>
-          <CardDescription>
-            Your latest Request for Quotations
-          </CardDescription>
+          <CardDescription>Your latest Request for Quotations</CardDescription>
         </CardHeader>
         <CardContent>
           {recentRFQs.length === 0 ? (
@@ -145,21 +152,28 @@ export default function OwnerDashboard() {
           ) : (
             <div className="space-y-4">
               {recentRFQs.map((rfq) => (
-                <div key={rfq.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  key={rfq.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div>
                     <h4 className="font-medium">{rfq.title}</h4>
                     <p className="text-sm text-gray-500">Deadline: {rfq.deadline}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      rfq.status === 'open' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        rfq.status === "open"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
                       {rfq.status}
                     </span>
                     <Link to={`/dashboard/rfqs/${rfq.id}`}>
-                      <Button variant="outline" size="sm">View</Button>
+                      <Button variant="outline" size="sm">
+                        View
+                      </Button>
                     </Link>
                   </div>
                 </div>
@@ -171,4 +185,3 @@ export default function OwnerDashboard() {
     </div>
   )
 }
-
