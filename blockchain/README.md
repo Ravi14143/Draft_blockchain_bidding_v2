@@ -1,13 +1,14 @@
-# Sample Hardhat Project
+use the below cmd
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+ganache deploy cmd
 
-Try running some of the following tasks:
+npm run deploy:ganache
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
+we will get deploy address
+
+cmd in blockchain
+
+npx ganache --port 7545 --deterministic  
+
+run it in background
 ```

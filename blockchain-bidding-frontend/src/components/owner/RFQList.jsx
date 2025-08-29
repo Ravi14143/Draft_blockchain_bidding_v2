@@ -40,6 +40,25 @@ export default function RFQList() {
     }
   }
 
+  const formatDeadline = (deadline) => {
+    if (!deadline) return 'No deadline set'
+    
+    try {
+      const date = new Date(deadline)
+      const day = date.getDate().toString().padStart(2, '0')
+      const month = (date.getMonth() + 1).toString().padStart(2, '0')
+      const year = date.getFullYear()
+      const hours = date.getHours()
+      const minutes = date.getMinutes().toString().padStart(2, '0')
+      const ampm = hours >= 12 ? 'PM' : 'AM'
+      const displayHours = hours % 12 || 12
+      
+      return `${day}-${month}-${year} ${displayHours}:${minutes} ${ampm}`
+    } catch (error) {
+      return deadline
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -96,8 +115,8 @@ export default function RFQList() {
                       }
                     </CardDescription>
                   </div>
-                  <Badge className={getStatusColor(rfq.status)}>
-                    {rfq.status}
+                  <Badge className={rfq.status == "open" ? "bg-green-200 text-green-800 p-4" : "bg-red-200 text-red-800 p-4"}>
+                    {rfq.status == "open" ? "Open" : "Closed"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -106,7 +125,7 @@ export default function RFQList() {
                   <div className="flex items-center space-x-6 text-sm text-gray-500">
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Deadline: {rfq.deadline}
+                      Deadline: {formatDeadline(rfq.deadline)}
                     </div>
                     <div className="flex items-center">
                       <Users className="h-4 w-4 mr-1" />
@@ -130,4 +149,3 @@ export default function RFQList() {
     </div>
   )
 }
-

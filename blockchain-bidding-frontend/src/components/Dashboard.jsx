@@ -2,6 +2,7 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LogOut, FileText, Users, Settings, Briefcase, Award, BarChart3 } from 'lucide-react'
+import main_login from '@/assets/main_login.png'
 
 // Import role-specific components
 import OwnerDashboard from './owner/OwnerDashboard'
@@ -66,13 +67,15 @@ export default function Dashboard({ user, setUser }) {
   const navItems = getNavItems()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 bg-gradient-to-br from-blue-400 to-yellow-300">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
+          
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
+              <img src={main_login} width={50} height={50} alt="Blockchain Loading" />
+              <h1 className="text-xl font-semibold text-gray-900 ml-2">
                 Blockchain Bidding Platform
               </h1>
             </div>
@@ -89,7 +92,7 @@ export default function Dashboard({ user, setUser }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ">
         <div className="flex gap-8">
           {/* Sidebar Navigation */}
           <aside className="w-64 flex-shrink-0">
@@ -108,8 +111,8 @@ export default function Dashboard({ user, setUser }) {
                         to={item.path}
                         className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                           isActive
-                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700 px-3 py-3 '
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 px-3 py-3'
                         }`}
                       >
                         <Icon className="h-4 w-4 mr-3" />
@@ -164,4 +167,3 @@ export default function Dashboard({ user, setUser }) {
     </div>
   )
 }
-
