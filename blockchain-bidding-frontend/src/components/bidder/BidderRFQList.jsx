@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import { Calendar, User, Eye, DollarSign } from 'lucide-react'
 
 export default function BidderRFQList() {
-  const [rfqs, setRFQs] = useState([])
+  const [rfqs, setRfqs] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -15,20 +15,18 @@ export default function BidderRFQList() {
 
   const fetchRFQs = async () => {
     try {
-      const response = await fetch('/api/rfqs', {
-        credentials: 'include'
-      })
-      if (response.ok) {
-        const data = await response.json()
-        // Filter to show only open RFQs for bidders
-        setRFQs(data.filter(rfq => rfq.status === 'open'))
+      const res = await fetch('http://127.0.0.1:5000/api/rfqs', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setRfqs(data.filter(rfq => rfq.status === "open"))
       }
-    } catch (error) {
-      console.error('Failed to fetch RFQs:', error)
+    } catch (err) {
+      console.error("Error fetching RFQs:", err)
     } finally {
       setLoading(false)
     }
   }
+
 
   if (loading) {
     return (

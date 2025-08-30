@@ -39,9 +39,9 @@ export default function AuditLog() {
       // Simulate audit log data since we don't have a real audit system
       // In a real application, this would fetch from an audit log API
       const [usersResponse, rfqsResponse, projectsResponse] = await Promise.all([
-        fetch('/api/users', { credentials: 'include' }),
-        fetch('/api/rfqs', { credentials: 'include' }),
-        fetch('/api/projects', { credentials: 'include' })
+        fetch('http://127.0.0.1:5000/api/users', { credentials: 'include' }),
+        fetch('http://127.0.0.1:5000/api/rfqs', { credentials: 'include' }),
+        fetch('http://127.0.0.1:5000/api/projects', { credentials: 'include' })
       ])
 
       if (usersResponse.ok && rfqsResponse.ok && projectsResponse.ok) {

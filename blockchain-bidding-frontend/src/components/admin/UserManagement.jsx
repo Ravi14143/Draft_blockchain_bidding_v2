@@ -27,7 +27,7 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('http://127.0.0.1:5000/api/users', {
         credentials: 'include'
       })
       if (response.ok) {
@@ -49,7 +49,7 @@ export default function UserManagement() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include'
       })

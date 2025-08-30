@@ -30,8 +30,8 @@ export default function BidderRFQDetail() {
   const fetchRFQDetails = async () => {
     try {
       const [rfqResponse, bidsResponse] = await Promise.all([
-        fetch(`/api/rfqs/${id}`, { credentials: 'include' }),
-        fetch(`/api/rfqs/${id}/bids`, { credentials: 'include' })
+        fetch(`http://127.0.0.1:5000/api/rfqs/${id}`, { credentials: 'include' }),
+        fetch(`http://127.0.0.1:5000/api/rfqs/${id}/bids`, { credentials: 'include' })
       ])
 
       if (rfqResponse.ok) {
@@ -61,7 +61,7 @@ export default function BidderRFQDetail() {
     setSuccess('')
 
     try {
-      const response = await fetch('/api/bids', {
+      const response = await fetch('http://127.0.0.1:5000/api/bids', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

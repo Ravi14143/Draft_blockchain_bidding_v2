@@ -23,9 +23,9 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       const [usersResponse, rfqsResponse, projectsResponse] = await Promise.all([
-        fetch('/api/users', { credentials: 'include' }),
-        fetch('/api/rfqs', { credentials: 'include' }),
-        fetch('/api/projects', { credentials: 'include' })
+        fetch('http://127.0.0.1:5000/api/users', { credentials: 'include' }),
+        fetch('http://127.0.0.1:5000/api/rfqs', { credentials: 'include' }),
+        fetch('http://127.0.0.1:5000/api/projects', { credentials: 'include' })
       ])
 
       if (usersResponse.ok && rfqsResponse.ok && projectsResponse.ok) {

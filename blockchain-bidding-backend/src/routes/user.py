@@ -53,29 +53,36 @@ def logout():
     session.pop('user_id', None)
     return jsonify({'message': 'Logged out successfully'})
 
-@user_bp.route('/me', methods=['GET'])
+@user_bp.route('/me', methods=['GET','post'])
 @login_required
 def get_current_user():
     user = User.query.get(session['user_id'])
     return jsonify(user.to_dict())
 
-# RFQ routes
-@user_bp.route('/rfqs', methods=['GET'])
-@role_required('bidder')
+@user_bp.route('/rfqs', methods=['GET', 'POST'])
+@login_required
 def get_rfqs():
+    user = User.query.get(session['user_id'])
+    
+    # Allow only bidders and admins
+    if user.role not in ['bidder', 'admin']:
+        return jsonify({'error': 'Not authorized'}), 403
+
     rfqs = RFQ.query.all()
     return jsonify([rfq.to_dict() for rfq in rfqs])
+
+
 
 @user_bp.route('/rfqs', methods=['POST'])
 @role_required('owner')
 def create_rfq():
     data = request.json
 
-    # On-chain transaction
     try:
         deadline_secs = to_unix_seconds(data.get('deadline'))
         scope_hash = str_keccak(data.get('scope', ''))
 
+        # Call blockchain service
         onchain = create_rfq_onchain(
             title=data.get('title', ''),
             scope_hash=scope_hash,
@@ -84,6 +91,9 @@ def create_rfq():
             budget=int(data.get('budget_max') or data.get('budget_min') or 0),
             location=data.get('location', '')
         )
+
+        # Debug log
+        print("Blockchain response:", onchain)
 
         rfq = RFQ(
             owner_id=session['user_id'],
@@ -100,8 +110,8 @@ def create_rfq():
             end_date=data.get('end_date'),
             eligibility_requirements=data.get('eligibility_requirements'),
             evaluation_weights=data.get('evaluation_weights'),
-            onchain_id=onchain["rfqId"],
-            tx_hash=onchain["txHash"]
+            onchain_id=onchain.get("rfqId"),  # safe getter
+            tx_hash=onchain.get("txHash")
         )
 
         db.session.add(rfq)
@@ -110,9 +120,12 @@ def create_rfq():
         return jsonify(rfq.to_dict()), 201
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        print("Error creating RFQ:", str(e))
+        return jsonify({'error': f"RFQ creation failed: {str(e)}"}), 500
 
-@user_bp.route('/rfqs/<int:rfq_id>', methods=['GET'])
+
+@user_bp.route('/rfqs/<int:rfq_id>', methods=['GET','post'])
 @login_required
 def get_rfq(rfq_id):
     rfq = RFQ.query.get_or_404(rfq_id)
@@ -120,7 +133,7 @@ def get_rfq(rfq_id):
 
 
 
-@user_bp.route('/rfqs/<int:rfq_id>/bids', methods=['GET'])
+@user_bp.route('/rfqs/<int:rfq_id>/bids', methods=['GET','post'])
 @login_required
 def get_rfq_bids(rfq_id):
     user = User.query.get(session['user_id'])
@@ -154,7 +167,7 @@ def create_bid():
     db.session.commit()
     return jsonify(bid.to_dict()), 201
 
-@user_bp.route('/my-bids', methods=['GET'])
+@user_bp.route('/my-bids', methods=['GET','post'])
 @role_required('bidder')
 def get_my_bids():
     bids = Bid.query.filter_by(bidder_id=session['user_id']).all()
@@ -179,7 +192,7 @@ def select_winner(bid_id):
     return jsonify(project.to_dict()), 201
 
 # Project routes
-@user_bp.route('/projects', methods=['GET'])
+@user_bp.route('/projects', methods=['GET','post'])
 @login_required
 def get_projects():
     user = User.query.get(session['user_id'])
@@ -192,13 +205,13 @@ def get_projects():
     
     return jsonify([project.to_dict() for project in projects])
 
-@user_bp.route('/projects/<int:project_id>', methods=['GET'])
+@user_bp.route('/projects/<int:project_id>', methods=['GET','post'])
 @login_required
 def get_project(project_id):
     project = Project.query.get_or_404(project_id)
     return jsonify(project.to_dict())
 
-@user_bp.route('/projects/<int:project_id>/milestones', methods=['GET'])
+@user_bp.route('/projects/<int:project_id>/milestones', methods=['GET','post'])
 @login_required
 def get_project_milestones(project_id):
     milestones = Milestone.query.filter_by(project_id=project_id).all()
@@ -227,7 +240,7 @@ def approve_milestone(milestone_id):
     return jsonify(milestone.to_dict())
 
 # Admin routes
-@user_bp.route('/users', methods=['GET'])
+@user_bp.route('/users', methods=['GET','post'])
 @role_required('admin')
 def get_users():
     users = User.query.all()
@@ -241,52 +254,41 @@ def delete_user(user_id):
     db.session.commit()
     return '', 204
 
-@user_bp.route('/dashboard', methods=['GET'])
+
+@user_bp.route('/dashboard', methods=['GET','POST'])
 @login_required
 def dashboard():
-    """
-    Returns a dashboard summary based on the user's role:
-    - Bidder: available RFQs, recent RFQs, my bids, won projects, bid success rate
-    - Owner: RFQs created, projects created
-    - Admin: user count and list
-    """
     user = User.query.get(session['user_id'])
     
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    print("DEBUG: Logged in user:", user.id, "Role:", user.role)
+
     # ----------------------
     # Bidder dashboard
     # ----------------------
     if user.role == "bidder":
-        # All open RFQs (ordered by deadline)
         available_rfqs = RFQ.query.filter_by(status="open").order_by(RFQ.deadline.asc()).all()
-        
-        # Last 5 open RFQs (recent)
         recent_rfqs = RFQ.query.filter_by(status="open").order_by(RFQ.publish_date.desc()).limit(5).all()
-        
-        # All bids by this bidder
         bids = Bid.query.filter_by(bidder_id=user.id).all()
         
-        # Include RFQ title for each bid
         bids_with_title = [
             {**bid.to_dict(), "rfq_title": RFQ.query.get(bid.rfq_id).title if RFQ.query.get(bid.rfq_id) else "N/A"}
             for bid in bids
         ]
         
-        # Projects where this bidder has won (joined via bid)
         projects = Project.query.join(Bid).filter(Bid.bidder_id == user.id).all()
         
-        response_data = {
+        return jsonify({
             "role": "bidder",
             "available_rfqs": len(available_rfqs),
             "recent_rfqs": [rfq.to_dict() for rfq in recent_rfqs],
             "bid_count": len(bids),
             "project_count": len(projects),
             "bids": bids_with_title,
-            "rfqs": [rfq.to_dict() for rfq in available_rfqs]  # all open RFQs
-        }
-        return jsonify(response_data)
+            "rfqs": [rfq.to_dict() for rfq in available_rfqs]
+        })
 
     # ----------------------
     # Owner dashboard
@@ -294,28 +296,26 @@ def dashboard():
     elif user.role == "owner":
         rfqs = RFQ.query.filter_by(owner_id=user.id).all()
         projects = Project.query.join(RFQ).filter(RFQ.owner_id == user.id).all()
-        response_data = {
+        
+        return jsonify({
             "role": "owner",
             "rfq_count": len(rfqs),
             "project_count": len(projects),
             "rfqs": [rfq.to_dict() for rfq in rfqs],
             "projects": [p.to_dict() for p in projects]
-        }
-        return jsonify(response_data)
+        })
 
     # ----------------------
     # Admin dashboard
     # ----------------------
     elif user.role == "admin":
         users = User.query.all()
-        response_data = {
+        
+        return jsonify({
             "role": "admin",
             "user_count": len(users),
             "users": [u.to_dict() for u in users]
-        }
-        return jsonify(response_data)
+        })
 
-    # ----------------------
-    # Unknown role
-    # ----------------------
-    return jsonify({"error": "Unknown role"}), 400
+    else:
+        return jsonify({"error": "Unknown role"}), 400
