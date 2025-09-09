@@ -18,6 +18,7 @@ import BidderRFQDetail from './bidder/BidderRFQDetail'
 import MyBids from './bidder/MyBids'
 import MyProjects from './bidder/MyProjects'
 import BidderProjectDetail from './bidder/BidderProjectDetail'
+import BidderProfile from './bidder/BidderProfile'
 import UserManagement from './admin/UserManagement'
 import AuditLog from './admin/AuditLog'
 
@@ -52,6 +53,7 @@ export default function Dashboard({ user, setUser }) {
           { path: '/dashboard/rfqs', label: 'Available RFQs', icon: FileText },
           { path: '/dashboard/my-bids', label: 'My Bids', icon: Award },
           { path: '/dashboard/my-projects', label: 'My Projects', icon: Briefcase },
+          { path: '/dashboard/profile', label: 'Profile', icon: Users }, // Added profile link
         ]
       case 'admin':
         return [
@@ -72,7 +74,6 @@ export default function Dashboard({ user, setUser }) {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-          
             <div className="flex items-center">
               <img src={main_login} width={50} height={50} alt="Blockchain Loading" />
               <h1 className="text-xl font-semibold text-gray-900 ml-2">
@@ -92,7 +93,7 @@ export default function Dashboard({ user, setUser }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
           {/* Sidebar Navigation */}
           <aside className="w-64 flex-shrink-0">
@@ -111,7 +112,7 @@ export default function Dashboard({ user, setUser }) {
                         to={item.path}
                         className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                           isActive
-                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700 px-3 py-3 '
+                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700 px-3 py-3'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 px-3 py-3'
                         }`}
                       >
@@ -149,6 +150,7 @@ export default function Dashboard({ user, setUser }) {
                   <Route path="/my-bids" element={<MyBids />} />
                   <Route path="/my-projects" element={<MyProjects />} />
                   <Route path="/my-projects/:id" element={<BidderProjectDetail />} />
+                  <Route path="/profile" element={<BidderProfile />} /> {/* Fixed route */}
                 </>
               )}
 

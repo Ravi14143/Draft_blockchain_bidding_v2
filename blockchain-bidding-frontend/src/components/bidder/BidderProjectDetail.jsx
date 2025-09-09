@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import WorkflowStepper from './WorkflowStepper'
 
 export default function BidderProjectDetails() {
   const { projectId } = useParams()
@@ -50,23 +51,33 @@ export default function BidderProjectDetails() {
   if (!project) return <div>Loading project...</div>
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">{project.rfq_title || "Project Details"}</h2>
-      <p><b>Status:</b> {project.status}</p>
+    <div className="space-y-6">
+      {/* PROJECT HEADER */}
+      <div>
+        <h2 className="text-2xl font-bold mb-2">{project.rfq_title || "Project Details"}</h2>
+        <p><b>Status:</b> {project.status}</p>
+      </div>
 
-      <h3 className="mt-6 text-xl font-bold">Milestones</h3>
-      {milestones.map(ms => (
-        <Card key={ms.id} className="mb-2">
-          <CardHeader>
-            <CardTitle>{ms.description}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p><b>Due Date:</b> {ms.due_date}</p>
-            <p><b>Status:</b> {ms.status}</p>
-          </CardContent>
-        </Card>
-      ))}
+      {/* WORKFLOW STEPPER */}
+      <WorkflowStepper currentStep={project.status} />
 
+      {/* MILESTONES */}
+      <div>
+        <h3 className="mt-6 text-xl font-bold">Milestones</h3>
+        {milestones.map(ms => (
+          <Card key={ms.id} className="mb-2">
+            <CardHeader>
+              <CardTitle>{ms.description}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p><b>Due Date:</b> {ms.due_date}</p>
+              <p><b>Status:</b> {ms.status}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* ADD MILESTONE FORM */}
       <div className="mt-6">
         <h3 className="font-bold">Add Milestone</h3>
         <input

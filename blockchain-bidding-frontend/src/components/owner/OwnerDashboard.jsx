@@ -13,8 +13,8 @@ export default function OwnerDashboard() {
     totalBids: 0
   })
   const [recentRFQs, setRecentRFQs] = useState([])
-  const [allRFQsLength, setRFQsLength] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -23,57 +23,45 @@ export default function OwnerDashboard() {
   const fetchDashboardData = async () => {
     try {
       const [rfqsResponse, projectsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:5000/api/rfqs', { credentials: 'include' }),
-        fetch('http://127.0.0.1:5000/api/projects', { credentials: 'include' })
+        fetch(`http://127.0.0.1:5000/api/rfqs`, { credentials: 'include' }),
+        fetch(`http://127.0.0.1:5000/api/projects`, { credentials: 'include' })
       ])
 
-      if (rfqsResponse.ok && projectsResponse.ok) {
-        const rfqs = await rfqsResponse.json()
-        const projects = await projectsResponse.json()
-
-        setStats({
-          totalRFQs: rfqs.length,
-          activeRFQs: rfqs.filter(rfq => rfq.status === 'open').length,
-          totalProjects: projects.length,
-          totalBids: rfqs.reduce((acc, rfq) => acc + (rfq.bids?.length || 0), 0)
-        })
-
-        setRFQsLength(rfqs.length)
-        setRecentRFQs(rfqs.slice(0, 2))
+      if (!rfqsResponse.ok || !projectsResponse.ok) {
+        throw new Error("Failed to fetch data")
       }
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
+
+      const rfqs = await rfqsResponse.json()
+      const projects = await projectsResponse.json()
+
+      setStats({
+        totalRFQs: rfqs.length,
+        activeRFQs: rfqs.filter(r => r.status === 'open').length,
+        totalProjects: projects.length,
+        totalBids: rfqs.reduce((acc, r) => acc + (r.bid_count || 0), 0)
+      })
+
+      setRecentRFQs(rfqs.slice(0, 2))
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open':
-        return 'bg-green-100 text-green-800'
-      case 'closed':
-        return 'bg-gray-100 text-gray-800'
-      default:
-        return 'bg-blue-100 text-blue-800'
-    }
-  }
-
   const formatDeadline = (deadline) => {
     if (!deadline) return 'No deadline set'
-    
     try {
       const date = new Date(deadline)
-      const day = date.getDate().toString().padStart(2, '0')
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const year = date.getFullYear()
-      const hours = date.getHours()
-      const minutes = date.getMinutes().toString().padStart(2, '0')
-      const ampm = hours >= 12 ? 'PM' : 'AM'
-      const displayHours = hours % 12 || 12
-      
-      return `${day}-${month}-${year} ${displayHours}:${minutes} ${ampm}`
-    } catch (error) {
+      return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch {
       return deadline
     }
   }
@@ -86,10 +74,17 @@ export default function OwnerDashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-red-500">
+        {error}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        {/* <h2 className="text-3xl font-bold text-gray-900">Owner Dashboard</h2> */}
         <h2 className="text-3xl font-bold text-gray-900">Overview</h2>
         <Link to="/dashboard/rfqs/new">
           <Button>
@@ -99,7 +94,7 @@ export default function OwnerDashboard() {
         </Link>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -121,9 +116,7 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
-              Projects in progress
-            </p>
+            <p className="text-xs text-muted-foreground">Projects in progress</p>
           </CardContent>
         </Card>
 
@@ -134,9 +127,7 @@ export default function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalBids}</div>
-            <p className="text-xs text-muted-foreground">
-              Received across all RFQs
-            </p>
+            <p className="text-xs text-muted-foreground">Received across all RFQs</p>
           </CardContent>
         </Card>
 
@@ -149,9 +140,7 @@ export default function OwnerDashboard() {
             <div className="text-2xl font-bold">
               {stats.totalRFQs > 0 ? Math.round((stats.totalProjects / stats.totalRFQs) * 100) : 0}%
             </div>
-            <p className="text-xs text-muted-foreground">
-              RFQs converted to projects
-            </p>
+            <p className="text-xs text-muted-foreground">RFQs converted to projects</p>
           </CardContent>
         </Card>
       </div>
@@ -162,14 +151,10 @@ export default function OwnerDashboard() {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle>Recent RFQs</CardTitle>
-              <CardDescription>
-                Your latest Request for Quotations
-              </CardDescription>
+              <CardDescription>Your latest Request for Quotations</CardDescription>
             </div>
             <Link to="/dashboard/rfqs">
-              <Button variant="outline" size="sm">
-                View All RFQs
-              </Button>
+              <Button variant="outline" size="sm">View All RFQs</Button>
             </Link>
           </div>
         </CardHeader>
@@ -194,19 +179,17 @@ export default function OwnerDashboard() {
                       <div className="flex-1">
                         <CardTitle className="text-lg">{rfq.title}</CardTitle>
                         <CardDescription className="mt-2">
-                          {rfq.scope && rfq.scope.length > 120 
-                            ? `${rfq.scope.substring(0, 120)}...` 
-                            : rfq.scope || 'No description available'
-                          }
+                          {rfq.scope || 'No description available'}
                         </CardDescription>
+                        <p className="text-sm text-gray-500 mt-2">
+                          <strong>Category:</strong> {rfq.category || 'N/A'} <br />
+                          <strong>Budget:</strong> {rfq.budget_min} - {rfq.budget_max} <br />
+                          <strong>Eligibility:</strong> {rfq.eligibility_requirements || 'N/A'}
+                        </p>
                       </div>
-                      {/* <Badge className={getStatusColor(rfq.status)}>
-                        {rfq.status}
-                      </Badge> */}
-
-                  <Badge className={rfq.status == "open" ? "bg-green-200 text-green-800 p-4" : "bg-red-200 text-red-800 p-4"}>
-                    {rfq.status == "open" ? "Open" : "Closed"}
-                  </Badge>
+                      <Badge className={rfq.submission_status.includes("closed") ? "bg-red-200 text-red-800 p-2" : "bg-green-200 text-green-800 p-2"}>
+                        {rfq.submission_status}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -218,7 +201,7 @@ export default function OwnerDashboard() {
                         </div>
                         <div className="flex items-center">
                           <Users className="h-4 w-4 mr-1" />
-                          {rfq.bids?.length || 0} bids
+                          {rfq.bid_count || 0} bids
                         </div>
                       </div>
                       <div className="flex space-x-2">

@@ -15,7 +15,7 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/me`, {
+    fetch(`http://127.0.0.1:5000/api/me`, {
       credentials: 'include'
     })
       .then(response => {

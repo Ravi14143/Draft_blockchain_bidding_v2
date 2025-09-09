@@ -1,26 +1,31 @@
-from sqlalchemy import create_engine, MetaData, Table
-from sqlalchemy.orm import sessionmaker
+import sqlite3
 
-# Path to your SQLite file
-DB_FILE = "app.db"  # change to your file name
-engine = create_engine(f"sqlite:///{DB_FILE}")
+# Connect to the database
+conn = sqlite3.connect('src/database/app.db')
+cursor = conn.cursor()
 
-# Reflect the existing database
-metadata = MetaData()
-metadata.reflect(bind=engine)
+# Get the list of all tables
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+tables = cursor.fetchall()
 
-# Create a session
-Session = sessionmaker(bind=engine)
-session = Session()
+for table_name in tables:
+    table = table_name[0]
+    print(f"\nTable: {table}")
+    
+    # Fetch all rows from the table
+    cursor.execute(f"SELECT * FROM {table}")
+    rows = cursor.fetchall()
+    
+    # Fetch column names
+    column_names = [description[0] for description in cursor.description]
+    
+    # Print column headers
+    print(" | ".join(column_names))
+    print("-" * 50)
+    
+    # Print table rows
+    for row in rows:
+        print(" | ".join(str(item) for item in row))
 
-# Iterate over all tables and print contents
-for table_name, table in metadata.tables.items():
-    print(f"\n=== Table: {table_name} ===")
-    rows = session.execute(table.select()).fetchall()
-    if rows:
-        for row in rows:
-            print(dict(row._mapping))  # Convert Row to dictionary
-    else:
-        print("(empty)")
-
-session.close()
+# Close the connection
+conn.close()

@@ -34,38 +34,44 @@ export default function CreateRFQ() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
     try {
-      let response
-      if (files.length > 0) {
-        const fd = new FormData()
-        fd.append('metadata', JSON.stringify(formData))
-        files.forEach(f => fd.append('files', f))
-        response = await fetch('http://127.0.0.1:5000/api/rfqs', {
-          method: 'POST',
-          credentials: 'include',
-          body: fd
-        })
-      } else {
-        response = await fetch('http://127.0.0.1:5000/api/rfqs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(formData)
-        })
+      const fd = new FormData()
+
+      // ✅ Send all fields as JSON string under key "metadata"
+      fd.append("metadata", JSON.stringify(formData))
+
+      // ✅ Append files
+      files.forEach((f) => fd.append("files", f))
+
+      // Debug log
+      console.log("✅ FormData to be sent:")
+      for (let pair of fd.entries()) {
+        console.log(pair[0], ":", pair[1])
       }
+
+      const response = await fetch("http://127.0.0.1:5000/api/rfqs", {
+        method: "POST",
+        credentials: "include",
+        body: fd
+      })
+
       if (!response.ok) {
         const err = await response.json()
-        throw new Error(err.error || 'Failed to create RFQ')
+        throw new Error(err.error || "Failed to create RFQ")
       }
+
       const rfq = await response.json()
+      console.log("✅ RFQ created:", rfq)
       alert(`✅ RFQ created. On-chain ID: ${rfq.onchain_id}, Tx: ${rfq.tx_hash}`)
       navigate(`/dashboard/rfqs/${rfq.id}`)
     } catch (err) {
-      setError(err.message || 'Network error. Please try again.')
+      setError(err.message || "Network error. Please try again.")
     } finally {
       setLoading(false)
     }
   }
+
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -123,11 +129,11 @@ export default function CreateRFQ() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Submission Deadline *</Label>
-                <Input name="deadline" type="datetime-local" value={formData.deadline} onChange={handleChange} required />
+                <Input name="deadline" type="date" value={formData.deadline} onChange={handleChange} required />
               </div>
               <div>
                 <Label>Clarification Deadline</Label>
-                <Input name="clarification_deadline" type="datetime-local" value={formData.clarification_deadline} onChange={handleChange} />
+                <Input name="clarification_deadline" type="date" value={formData.clarification_deadline} onChange={handleChange} />
               </div>
             </div>
 

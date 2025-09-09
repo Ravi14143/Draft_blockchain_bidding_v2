@@ -4,11 +4,10 @@ const path = require("path");
 
 async function main() {
   console.log("Deploying RFQRegistry...");
-  const RFQRegistry = await hre.ethers.getContractFactory("RFQRegistry");
 
-  // If your contract has constructor args, pass them here
+  const RFQRegistry = await hre.ethers.getContractFactory("RFQRegistry");
   const contract = await RFQRegistry.deploy();
-  await contract.waitForDeployment(); // ✅ ethers v6
+  await contract.waitForDeployment(); // ethers v6
 
   const address = await contract.getAddress();
   console.log("RFQRegistry deployed to:", address);
@@ -16,9 +15,11 @@ async function main() {
   const artifact = await hre.artifacts.readArtifact("RFQRegistry");
   const out = { address, abi: artifact.abi };
 
-  const target = path.join(__dirname, "..", "..", "blockchain-bidding-backend", "src", "blockchain");
+  // Write to backend folder
+  const target = path.join(__dirname, "..", "blockchain-bidding-backend", "src", "blockchain");
   fs.mkdirSync(target, { recursive: true });
   fs.writeFileSync(path.join(target, "RFQRegistry.json"), JSON.stringify(out, null, 2));
+
   console.log("Wrote ABI+address to backend src/blockchain/RFQRegistry.json");
 }
 

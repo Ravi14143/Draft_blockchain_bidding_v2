@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import blockchain_loading from '@/assets/blockchain_loading.png'
 import main_login from '@/assets/main_login.png'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -10,14 +9,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Eye, EyeOff } from 'lucide-react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { useRef, useEffect } from 'react'
+import { useRef } from 'react'
 
 const API_BASE_URL = 'http://127.0.0.1:5000'
 
 export default function Login({ setUser }) {
-  // Default login username is 'owner1'; you can change as needed
   const [loginData, setLoginData] = useState({ username: '', password: '' })
-  const [registerData, setRegisterData] = useState({ username: '', password: '', role: '' })
+  const [registerData, setRegisterData] = useState({
+    username: '',
+    password: '',
+    role: '',
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    address: '',
+  })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showLoginPassword, setShowLoginPassword] = useState(false)
@@ -32,7 +39,7 @@ export default function Login({ setUser }) {
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',  // important for session cookies
+        credentials: 'include',
         body: JSON.stringify(loginData),
       })
 
@@ -43,7 +50,7 @@ export default function Login({ setUser }) {
         const errorData = await response.json()
         setError(errorData.error || 'Login failed')
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.')
     } finally {
       setLoading(false)
@@ -61,6 +68,18 @@ export default function Login({ setUser }) {
       return
     }
 
+    // Validation for bidder extra fields
+    if (registerData.role === 'bidder') {
+      const requiredFields = ['name', 'email', 'phone', 'company', 'address']
+      for (let field of requiredFields) {
+        if (!registerData[field]) {
+          setError(`Please fill in your ${field}`)
+          setLoading(false)
+          return
+        }
+      }
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
@@ -76,51 +95,30 @@ export default function Login({ setUser }) {
         const errorData = await response.json()
         setError(errorData.error || 'Registration failed')
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Optional: quick-fill demo credentials
-  const fillDemoCredentials = (role = 'owner') => {
-    const demoMap = {
-      owner: { username: 'owner1', password: 'password123' },
-      bidder: { username: 'bidder1', password: 'password123' },
-      admin: { username: 'admin1', password: 'password123' },
-    }
-    setLoginData(demoMap[role] || demoMap.owner)
-    setError('')
-  }
-
   const loading_blockchain_ref = useRef()
-
-  // useGSAP(() => {
-  //   gsap.to(loading_blockchain_ref.current, {
-  //     rotation: 360,
-  //     duration: 12,
-  //     repeat: -1,
-  //     ease: 'linear',
-  //   })
-  // })
 
   useGSAP(() => {
     gsap.to(loading_blockchain_ref.current, {
       y: -30,
-      duration: 1.5, 
+      duration: 1.5,
       repeat: -1,
       yoyo: true,
-      ease: "sine.inOut",
-    });
-  });
-
+      ease: 'sine.inOut',
+    })
+  })
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-400 to-yellow-300">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div ref={loading_blockchain_ref} className='flex justify-center items-center mt-8'>
+          <div ref={loading_blockchain_ref} className="flex justify-center items-center mt-8">
             <img src={main_login} width={200} height={200} alt="Blockchain Loading" />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
@@ -131,25 +129,16 @@ export default function Login({ setUser }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className='mt-1'></div>
-          <Tabs defaultValue="login" className="w-full" >
+          <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
 
-
-            {/* forceMount
-  className="
-    overflow-hidden transition-all duration-500
-    data-[state=inactive]:max-h-0 data-[state=inactive]:opacity-0
-    data-[state=active]:max-h-[500px] data-[state=active]:opacity-100
-  " */}
-
-  <TabsContent value="login" >
-
+            {/* LOGIN */}
+            <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2 space-x-2 my-4">
+                <div className="space-y-2 my-4">
                   <Label htmlFor="login-username">Username</Label>
                   <Input
                     id="login-username"
@@ -159,12 +148,12 @@ export default function Login({ setUser }) {
                     required
                   />
                 </div>
-                <div className="space-y-2 space-x-2 my-4">
+                <div className="space-y-2 my-4">
                   <Label htmlFor="login-password">Password</Label>
                   <div className="relative">
                     <Input
                       id="login-password"
-                      type={showLoginPassword ? "text" : "password"}
+                      type={showLoginPassword ? 'text' : 'password'}
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
@@ -183,30 +172,16 @@ export default function Login({ setUser }) {
                   </div>
                 </div>
 
-                {/* Demo credentials quick-fill */}
-                {/* <div className="flex gap-2">
-                  <Button type="button" variant="ghost" onClick={() => fillDemoCredentials('owner')}>
-                    Fill Owner Demo
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={() => fillDemoCredentials('bidder')}>
-                    Fill Bidder Demo
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={() => fillDemoCredentials('admin')}>
-                    Fill Admin Demo
-                  </Button>
-                </div> */}
-
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
                 <Button type="submit" className="w-full mt-4" disabled={loading}>
                   {loading ? 'Logging in...' : 'Login'}
                 </Button>
               </form>
+            </TabsContent>
 
-              </TabsContent>
-
-
-              <TabsContent value="register">
+            {/* REGISTER */}
+            <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2 my-4">
                   <Label htmlFor="register-username">Username</Label>
@@ -223,7 +198,7 @@ export default function Login({ setUser }) {
                   <div className="relative">
                     <Input
                       id="register-password"
-                      type={showRegisterPassword ? "text" : "password"}
+                      type={showRegisterPassword ? 'text' : 'password'}
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       required
@@ -253,10 +228,65 @@ export default function Login({ setUser }) {
                     <SelectContent>
                       <SelectItem value="owner">Project Owner</SelectItem>
                       <SelectItem value="bidder">Bidder / Contractor</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Extra fields for bidder */}
+                {registerData.role === 'bidder' && (
+                  <>
+                    <div className="space-y-2 my-4">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        value={registerData.name}
+                        onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 my-4">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 my-4">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={registerData.phone}
+                        onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 my-4">
+                      <Label htmlFor="company">Company</Label>
+                      <Input
+                        id="company"
+                        type="text"
+                        value={registerData.company}
+                        onChange={(e) => setRegisterData({ ...registerData, company: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 my-4">
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        id="address"
+                        type="text"
+                        value={registerData.address}
+                        onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
