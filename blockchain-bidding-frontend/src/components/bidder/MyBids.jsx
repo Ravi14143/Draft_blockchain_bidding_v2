@@ -21,7 +21,7 @@ export default function MyBids() {
         setBids(await res.json())
       }
     } catch (err) {
-      console.error("Error fetching bids:", err)
+      console.error('Error fetching bids:', err)
     } finally {
       setLoading(false)
     }
@@ -36,18 +36,22 @@ export default function MyBids() {
   }
 
   if (bids.length === 0) {
-    return <p className="text-gray-500">You haven’t placed any bids yet.</p>
+    return (
+      <Card className="p-6 text-center text-gray-500">
+        You haven’t placed any bids yet.
+      </Card>
+    )
   }
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">My Bids</h2>
 
-      {bids.map(bid => (
+      {bids.map((bid) => (
         <Card key={bid.id} className="mb-4">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>{bid.rfq_title || "Untitled RFQ"}</CardTitle>
+              <CardTitle>{bid.rfq_title || 'Untitled RFQ'}</CardTitle>
               <p className="text-sm text-gray-500">Bid ID: {bid.id}</p>
             </div>
             <Badge
@@ -61,30 +65,42 @@ export default function MyBids() {
                   : 'bg-blue-100 text-blue-800'
               }
             >
-              {bid.status}
+              {bid.status || 'submitted'}
             </Badge>
           </CardHeader>
 
           <CardContent className="space-y-3 text-sm">
-            <p><strong>Price:</strong> ${bid.price?.toLocaleString()}</p>
-            <p><strong>Timeline:</strong> {bid.timeline || 'N/A'}</p>
+            <p>
+              <strong>Price:</strong> ${bid.price?.toLocaleString()}
+            </p>
+            <p>
+              <strong>Timeline:</strong> {bid.timeline || 'N/A'}
+            </p>
 
             {/* Clarification */}
             {bid.status === 'clarification_needed' && (
-              <p className="text-yellow-700">⚠️ Awaiting your clarification response.</p>
+              <p className="text-yellow-700">
+                ⚠️ Awaiting your clarification response.
+              </p>
             )}
 
             {/* Rejected */}
-            {bid.status === 'rejected' && bid.phase1_evaluation?.reason && (
-              <div className="flex items-center text-red-600">
-                <AlertTriangle className="h-4 w-4 mr-1" />
-                <span>Reason: {bid.phase1_evaluation.reason}</span>
-              </div>
-            )}
+            {bid.status === 'rejected' &&
+              (bid.phase1_report?.reason || bid.red_flags?.reason) && (
+                <div className="flex items-center text-red-600">
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  <span>
+                    Reason:{' '}
+                    {bid.phase1_report?.reason || bid.red_flags?.reason}
+                  </span>
+                </div>
+              )}
 
             {/* Selected */}
             {bid.status === 'selected' && (
-              <p className="text-green-600 font-medium">🎉 Congratulations! You won this project.</p>
+              <p className="text-green-600 font-medium">
+                🎉 Congratulations! You won this project.
+              </p>
             )}
 
             {/* View RFQ Button */}

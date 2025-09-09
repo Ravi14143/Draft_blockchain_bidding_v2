@@ -151,19 +151,19 @@ class RFQFile(db.Model):
             "uploaded_at": self.uploaded_at.isoformat()
         }
 
-# -----------------------------
-# Bid models
-# -----------------------------
+
 class Bid(db.Model):
     __tablename__ = 'bids'
+
     id = db.Column(db.Integer, primary_key=True)
     rfq_id = db.Column(db.Integer, db.ForeignKey('rfqs.id'), nullable=False)
     bidder_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    timeline = db.Column(db.String(120), nullable=False)
-    qualifications = db.Column(db.Text, nullable=False)
 
-    document_hash = db.Column(db.String(120), default="hash_placeholder")
+    price = db.Column(db.Integer, nullable=False)
+    timeline = db.Column(db.String(120), nullable=True)  # allow optional
+    qualifications = db.Column(db.Text, nullable=True)
+
+    document_hash = db.Column(db.String(120), nullable=True)
     onchain_id = db.Column(db.Integer)
     tx_hash = db.Column(db.String(80))
 
@@ -171,18 +171,18 @@ class Bid(db.Model):
 
     # Evaluation
     phase1_status = db.Column(db.String(20), default="pending")
-    phase1_report = db.Column(db.JSON, default={})
+    phase1_report = db.Column(db.JSON, default=dict)
     phase2_status = db.Column(db.String(20), default="pending")
     phase2_score = db.Column(db.Float)
-    phase2_breakdown = db.Column(db.JSON, default={})
-    red_flags = db.Column(db.JSON, default={})
+    phase2_breakdown = db.Column(db.JSON, default=dict)
+    red_flags = db.Column(db.JSON, default=list)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    files = relationship("BidFile", backref="bid", cascade="all, delete-orphan")
+    files = db.relationship("BidFile", backref="bid", cascade="all, delete-orphan")
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_files=True):
+        data = {
             "id": self.id,
             "rfq_id": self.rfq_id,
             "bidder_id": self.bidder_id,
@@ -200,11 +200,12 @@ class Bid(db.Model):
             "phase2_breakdown": self.phase2_breakdown,
             "red_flags": self.red_flags,
             "created_at": self.created_at.isoformat(),
-            "files": [f.to_dict() for f in self.files]
         }
+        if include_files:
+            data["files"] = [f.to_dict() for f in self.files]
+        return data
 
 
-# src/models/user.py
 class BidFile(db.Model):
     __tablename__ = "bid_files"
 
@@ -213,8 +214,6 @@ class BidFile(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     filepath = db.Column(db.String(500), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    bid = db.relationship("Bid", backref="files")
 
     def to_dict(self):
         return {
