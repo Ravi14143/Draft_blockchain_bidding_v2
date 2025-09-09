@@ -48,13 +48,27 @@ export default function BidderDashboard() {
           availableRFQs: data.available_rfqs,
           myBids: data.bid_count,
           wonProjects: data.project_count,
-          successRate:
-            data.bid_count > 0
-              ? Math.round((wonBids / data.bid_count) * 100)
-              : 0,
+          successRate: data.bid_count > 0 ? Math.round((wonBids / data.bid_count) * 100) : 0,
         })
+
         setRecentRFQs(data.recent_rfqs || [])
-        setMyBids(data.bids || [])
+
+        // Fetch RFQ titles for each bid
+        const bidsWithTitles = await Promise.all(
+          (data.bids || []).map(async (bid) => {
+            try {
+              const rfqRes = await fetch(`http://127.0.0.1:5000/api/rfqs/${bid.rfq_id}`, {
+                credentials: "include",
+              })
+              const rfqData = rfqRes.ok ? await rfqRes.json() : {}
+              return { ...bid, rfq_title: rfqData.title || "Untitled RFQ" }
+            } catch {
+              return { ...bid, rfq_title: "Untitled RFQ" }
+            }
+          })
+        )
+
+        setMyBids(bidsWithTitles)
       }
     } catch (err) {
       console.error("Dashboard fetch failed:", err)
@@ -94,30 +108,10 @@ export default function BidderDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          {
-            title: "Available RFQs",
-            value: stats.availableRFQs,
-            icon: FileText,
-            desc: "Open for bidding",
-          },
-          {
-            title: "My Bids",
-            value: stats.myBids,
-            icon: Award,
-            desc: "Total submitted",
-          },
-          {
-            title: "Won Projects",
-            value: stats.wonProjects,
-            icon: Briefcase,
-            desc: "Active projects",
-          },
-          {
-            title: "Success Rate",
-            value: stats.successRate + "%",
-            icon: TrendingUp,
-            desc: "Bids won",
-          },
+          { title: "Available RFQs", value: stats.availableRFQs, icon: FileText, desc: "Open for bidding" },
+          { title: "My Bids", value: stats.myBids, icon: Award, desc: "Total submitted" },
+          { title: "Won Projects", value: stats.wonProjects, icon: Briefcase, desc: "Active projects" },
+          { title: "Success Rate", value: stats.successRate + "%", icon: TrendingUp, desc: "Bids won" },
         ].map((card, i) => (
           <Card key={i}>
             <CardHeader className="flex justify-between pb-2">
@@ -152,25 +146,20 @@ export default function BidderDashboard() {
                   className="p-4 border rounded-lg hover:shadow-sm transition"
                 >
                   <h4 className="font-medium text-lg mb-1">{rfq.title}</h4>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {rfq.scope?.substring(0, 120)}...
-                  </p>
+                  <p className="text-sm text-gray-600 mb-2">{rfq.scope?.substring(0, 120)}...</p>
                   <div className="grid grid-cols-2 gap-2 text-sm text-gray-500">
                     <div className="flex items-center">
                       <User className="h-3 w-3 mr-1" /> Owner: {rfq.owner_id}
                     </div>
                     <div className="flex items-center">
-                      <Calendar className="h-3 w-3 mr-1" /> Deadline:{" "}
-                      {formatDate(rfq.deadline)}
+                      <Calendar className="h-3 w-3 mr-1" /> Deadline: {formatDate(rfq.deadline)}
                     </div>
                     <div className="flex items-center">
-                      <DollarSign className="h-3 w-3 mr-1" /> Budget: $
-                      {rfq.budget_min || "?"} – ${rfq.budget_max || "?"}
+                      <DollarSign className="h-3 w-3 mr-1" /> Budget: ${rfq.budget_min || "?"} – ${rfq.budget_max || "?"}
                     </div>
                     {rfq.category && (
                       <div>
-                        <span className="font-medium">Category:</span>{" "}
-                        {rfq.category}
+                        <span className="font-medium">Category:</span> {rfq.category}
                       </div>
                     )}
                   </div>
@@ -205,33 +194,27 @@ export default function BidderDashboard() {
                   key={bid.id}
                   className="p-4 border rounded-lg hover:shadow-sm transition"
                 >
-                  <h4 className="font-medium text-lg mb-1">
-                    {bid.rfq_title || "RFQ title missing"}
-                  </h4>
+                  <h4 className="font-medium text-lg mb-1">{bid.rfq_title || "Untitled RFQ"}</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm text-gray-500">
                     <div className="flex items-center">
-                      <DollarSign className="h-3 w-3 mr-1" /> Bid Price: $
-                      {bid.price?.toLocaleString() || "N/A"}
+                      <DollarSign className="h-3 w-3 mr-1" /> Bid Price: ${bid.price?.toLocaleString() || "N/A"}
                     </div>
                     <div>
                       <span className="font-medium">Status:</span> {bid.status}
                     </div>
                     {bid.phase1_status && (
                       <div>
-                        <span className="font-medium">Phase 1:</span>{" "}
-                        {bid.phase1_status}
+                        <span className="font-medium">Phase 1:</span> {bid.phase1_status}
                       </div>
                     )}
                     {bid.phase2_status && (
                       <div>
-                        <span className="font-medium">Phase 2:</span>{" "}
-                        {bid.phase2_status}
+                        <span className="font-medium">Phase 2:</span> {bid.phase2_status}
                       </div>
                     )}
                     {bid.phase2_score && (
                       <div>
-                        <span className="font-medium">Score:</span>{" "}
-                        {bid.phase2_score}
+                        <span className="font-medium">Score:</span> {bid.phase2_score}
                       </div>
                     )}
                   </div>

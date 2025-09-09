@@ -79,13 +79,15 @@ export default function ProjectList() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-xl">{project.rfq_title}</CardTitle>
+                    <CardTitle className="text-xl">
+                      {project.rfq_title || "Untitled Project"}
+                    </CardTitle>
                     <CardDescription className="mt-2">
-                      Project #{project.id} • Contractor: {project.winner_bidder}
+                      Project #{project.id} • Contractor: {project.winner_bidder || "N/A"}
                     </CardDescription>
                   </div>
                   <Badge className={getStatusColor(project.status)}>
-                    {project.status.replace('_', ' ')}
+                    {project.status ? project.status.replace('_', ' ') : "unknown"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -94,11 +96,11 @@ export default function ProjectList() {
                   <div className="flex items-center space-x-6 text-sm text-gray-500">
                     <div className="flex items-center">
                       <User className="h-4 w-4 mr-1" />
-                      {project.winner_bidder}
+                      {project.winner_bidder || "N/A"}
                     </div>
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Started from RFQ #{project.rfq_id}
+                      Started from RFQ #{project.rfq_id || "?"}
                     </div>
                   </div>
                   <div className="flex space-x-2">
@@ -118,4 +120,3 @@ export default function ProjectList() {
     </div>
   )
 }
-

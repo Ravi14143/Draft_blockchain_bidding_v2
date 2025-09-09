@@ -6,10 +6,10 @@ contract RFQRegistry {
         uint256 id;
         address owner;
         string title;
-        string metaHash;
-        uint256 deadline;
+        string metaHash; // off-chain reference (IPFS, etc.)
+        uint256 deadline; // unix timestamp
         string category;
-        uint256 budget;
+        uint256 budget;   // stored in cents for consistency
         string location;
         bool active;
     }
@@ -18,15 +18,16 @@ contract RFQRegistry {
         uint256 id;
         uint256 rfqId;
         address bidder;
-        uint256 price;
-        string docHash;
+        uint256 price;    // stored in cents
+        string docHash;   // off-chain reference
     }
 
     uint256 public nextId;
     uint256 public nextBidId;
 
     mapping(uint256 => RFQ) public rfqs;
-    mapping(uint256 => Bid[]) public rfqBids; // RFQ ID → array of bids
+    mapping(uint256 => Bid[]) private rfqBids; // RFQ ID → array of bids
+    mapping(uint256 => mapping(address => bool)) private hasBid; // rfqId → bidder → true
 
     // ----------------- Events -----------------
     event RFQCreated(
@@ -41,7 +42,13 @@ contract RFQRegistry {
     );
 
     event RFQClosed(uint256 indexed id);
-    event BidSubmitted(uint256 indexed id, uint256 indexed rfqId, address indexed bidder, uint256 price, string docHash);
+    event BidSubmitted(
+        uint256 indexed id,
+        uint256 indexed rfqId,
+        address indexed bidder,
+        uint256 price,
+        string docHash
+    );
 
     // ----------------- RFQ Functions -----------------
     function createRFQ(
@@ -52,8 +59,20 @@ contract RFQRegistry {
         uint256 budget,
         string calldata location
     ) external returns (uint256 id) {
+        require(deadline > block.timestamp, "Deadline must be in future");
+
         id = ++nextId;
-        rfqs[id] = RFQ(id, msg.sender, title, metaHash, deadline, category, budget, location, true);
+        rfqs[id] = RFQ(
+            id,
+            msg.sender,
+            title,
+            metaHash,
+            deadline,
+            category,
+            budget,
+            location,
+            true
+        );
         emit RFQCreated(id, msg.sender, title, metaHash, deadline, category, budget, location);
     }
 
@@ -65,15 +84,25 @@ contract RFQRegistry {
         emit RFQClosed(id);
     }
 
-    // ----------------- Bid Function -----------------
+    // ----------------- Bid Functions -----------------
     function submitBid(
         uint256 rfqId,
         uint256 price,
         string calldata docHash
     ) external returns (uint256 bidId) {
-        require(rfqs[rfqId].active, "RFQ not active");
+        RFQ storage r = rfqs[rfqId];
+        require(r.active, "RFQ not active");
+        require(block.timestamp <= r.deadline, "Deadline passed");
+        require(!hasBid[rfqId][msg.sender], "Already submitted");
+
         bidId = ++nextBidId;
         rfqBids[rfqId].push(Bid(bidId, rfqId, msg.sender, price, docHash));
+        hasBid[rfqId][msg.sender] = true;
+
         emit BidSubmitted(bidId, rfqId, msg.sender, price, docHash);
+    }
+
+    function getBids(uint256 rfqId) external view returns (Bid[] memory) {
+        return rfqBids[rfqId];
     }
 }

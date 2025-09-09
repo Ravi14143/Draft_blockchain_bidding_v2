@@ -1,4 +1,3 @@
-// MyBids.jsx
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +17,22 @@ export default function MyBids() {
     try {
       const res = await fetch('http://127.0.0.1:5000/api/my-bids', { credentials: 'include' })
       if (res.ok) {
-        setBids(await res.json())
+        const bidsData = await res.json()
+
+        // Fetch RFQ titles for each bid
+        const bidsWithTitles = await Promise.all(
+          bidsData.map(async (bid) => {
+            try {
+              const rfqRes = await fetch(`http://127.0.0.1:5000/api/rfqs/${bid.rfq_id}`, { credentials: 'include' })
+              const rfqData = rfqRes.ok ? await rfqRes.json() : {}
+              return { ...bid, rfq_title: rfqData.title || 'Untitled RFQ' }
+            } catch {
+              return { ...bid, rfq_title: 'Untitled RFQ' }
+            }
+          })
+        )
+
+        setBids(bidsWithTitles)
       }
     } catch (err) {
       console.error('Error fetching bids:', err)
@@ -51,7 +65,7 @@ export default function MyBids() {
         <Card key={bid.id} className="mb-4">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>{bid.rfq_title || 'Untitled RFQ'}</CardTitle>
+              <CardTitle>{bid.rfq_title}</CardTitle>
               <p className="text-sm text-gray-500">Bid ID: {bid.id}</p>
             </div>
             <Badge
@@ -74,36 +88,33 @@ export default function MyBids() {
               <strong>Price:</strong> ${bid.price?.toLocaleString()}
             </p>
             <p>
-              <strong>Timeline:</strong> {bid.timeline || 'N/A'}
-            </p>
+          <strong>Timeline:</strong>{" "}
+          {bid.timeline_start
+            ? bid.timeline_end
+              ? `${new Date(bid.timeline_start).toLocaleDateString()} - ${new Date(bid.timeline_end).toLocaleDateString()}`
+              : new Date(bid.timeline_start).toLocaleDateString()
+            : "N/A"}
+        </p>
 
-            {/* Clarification */}
+
             {bid.status === 'clarification_needed' && (
-              <p className="text-yellow-700">
-                ⚠️ Awaiting your clarification response.
-              </p>
+              <p className="text-yellow-700">⚠️ Awaiting your clarification response.</p>
             )}
 
-            {/* Rejected */}
             {bid.status === 'rejected' &&
               (bid.phase1_report?.reason || bid.red_flags?.reason) && (
                 <div className="flex items-center text-red-600">
                   <AlertTriangle className="h-4 w-4 mr-1" />
-                  <span>
-                    Reason:{' '}
-                    {bid.phase1_report?.reason || bid.red_flags?.reason}
-                  </span>
+                  <span>Reason: {bid.phase1_report?.reason || bid.red_flags?.reason}</span>
                 </div>
               )}
 
-            {/* Selected */}
             {bid.status === 'selected' && (
               <p className="text-green-600 font-medium">
                 🎉 Congratulations! You won this project.
               </p>
             )}
 
-            {/* View RFQ Button */}
             <div className="pt-2">
               <Link to={`/dashboard/rfqs/${bid.rfq_id}`}>
                 <Button variant="outline" size="sm">

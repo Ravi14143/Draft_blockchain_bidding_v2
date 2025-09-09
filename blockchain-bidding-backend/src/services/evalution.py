@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Tuple, Optional
 
 import numpy as np
 
-from src.models.user import RFQ, RFQFile, BidFile
+from src.models.user import RFQ, RFQFile, BidFile, Bid
 from src.services.llm import ask_llm_json, ask_llm
 
 # ---- Embeddings (free local) ----
@@ -167,20 +167,15 @@ Only return JSON.
 # ---------------------------
 # Phase 2 – Semantic + Weighted Scoring + AI red flags
 # ---------------------------
-def evaluate_phase2(
-    bid_id: int,
-    rfq_id: int,
-    qualifications_text: str,
-    price: float,
-    timeline: str
-) -> Dict[str, Any]:
-    rfq = RFQ.query.get(rfq_id)
-    weights = _parse_weights(rfq.evaluation_weights or "")
+def evaluate_phase2(bid: Bid) -> dict:
+    rfq = RFQ.query.get(bid.rfq_id)
+    weights = _parse_weights(rfq.evaluation_weights or {})
 
     # --- Gather text from files (owner RFQ vs bidder submission)
-    rfq_files = RFQFile.query.filter_by(rfq_id=rfq_id).all()
-    bid_files = BidFile.query.filter_by(bid_id=bid_id, rfq_id=rfq_id).all()
+    rfq_files = RFQFile.query.filter_by(rfq_id=rfq.id).all()
+    bid_files = BidFile.query.filter_by(bid_id=bid.id).all()
 
+    # --- Collect RFQ text
     rfq_texts = [rfq.scope or "", rfq.evaluation_criteria or "", rfq.eligibility_requirements or ""]
     for f in rfq_files:
         try:
@@ -189,7 +184,8 @@ def evaluate_phase2(
             pass
     rfq_text = _safe_join_texts(rfq_texts)
 
-    bid_texts = [qualifications_text or ""]
+    # --- Collect bidder text
+    bid_texts = [bid.qualifications or ""]
     for f in bid_files:
         try:
             bid_texts.append(f.extract_text() or "")
@@ -197,7 +193,7 @@ def evaluate_phase2(
             pass
     bid_text = _safe_join_texts(bid_texts)
 
-    # --- Semantic similarity (free embeddings)
+    # --- Semantic similarity
     try:
         if rfq_text and bid_text:
             emb_rfq = _embed(rfq_text)
@@ -208,22 +204,16 @@ def evaluate_phase2(
     except Exception:
         semantic_score = 0.0
 
-    # --- Numeric scoring: price & timeline & experience proxy
+    # --- Numeric scoring: price, timeline, experience
     bmin = rfq.budget_min or 0
     bmax = rfq.budget_max or (bmin + 1 if bmin else 1)
-    if price <= 0 or bmax <= bmin:
-        price_score = 0.5
-    else:
-        price_score = max(0.0, min(1.0, (bmax - float(price)) / (bmax - bmin)))
+    price_score = max(0.0, min(1.0, (bmax - float(bid.price)) / (bmax - bmin))) if bid.price > 0 and bmax > bmin else 0.5
 
     window_days = _days_between(rfq.start_date, rfq.end_date)
-    bid_days = _timeline_days(timeline)
-    timeline_score = 1.0 if not window_days else max(
-        0.0, min(1.0, (window_days - abs(window_days - bid_days)) / window_days)
-    )
+    bid_days = _days_between(bid.timeline_start, bid.timeline_end)
+    timeline_score = 1.0 if not window_days else max(0.0, min(1.0, (window_days - abs(window_days - bid_days)) / window_days))
 
-    # crude experience proxy from text
-    text_l = (qualifications_text or "").lower()
+    text_l = (bid.qualifications or "").lower()
     exp_hits = sum(kw in text_l for kw in ["experience", "methodology", "case study", "reference", "certification", "compliance"])
     experience_score = max(0.0, min(1.0, 0.3 + 0.1 * exp_hits))
     if len(text_l) < 200:
@@ -235,8 +225,7 @@ def evaluate_phase2(
         "experience": round(experience_score, 3),
         "semantic": round(semantic_score, 3),
     }
-    total = float(sum(breakdown[k] * weights.get(k, 0.25) for k in breakdown.keys()))
-    total = max(0.0, min(1.0, total))
+    total = max(0.0, min(1.0, sum(breakdown[k] * weights.get(k, 0.25) for k in breakdown)))
 
     # --- AI analysis for missing points / red flags / clarifications
     ai_prompt = f"""
@@ -244,14 +233,10 @@ You compare an RFQ document to a bidder proposal.
 
 Return STRICT JSON with:
 {{
-  "missing": string[],         // What the bidder did NOT address but RFQ implies
-  "red_flags": string[],       // Risks, inconsistencies, too-low price, weak approach, compliance gaps
-  "clarification_needed": string[] // Specific questions to resolve uncertainties
+  "missing": string[],         
+  "red_flags": string[],       
+  "clarification_needed": string[] 
 }}
-
-Notes:
-- Be specific and actionable.
-- Consider technical approach relevance, feasibility, compliance, deliverables, and risks.
 
 RFQ TEXT:
 {rfq_text[:6000]}
@@ -261,8 +246,13 @@ BID TEXT:
 """
     extra = ask_llm_json(ai_prompt, default={"missing": [], "red_flags": [], "clarification_needed": []})
 
+    # Ensure it's a dict
+    if not isinstance(extra, dict):
+        extra = {"missing": [], "red_flags": [], "clarification_needed": []}
+
     # --- Decide status using score + AI signals
     has_red_flags = bool(extra.get("red_flags"))
+    print(has_red_flags)
     if total >= 0.72 and not has_red_flags:
         status = "pass"
     elif total >= 0.5:

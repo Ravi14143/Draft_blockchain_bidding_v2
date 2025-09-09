@@ -18,7 +18,7 @@ class User(db.Model):
     
     # Bidder-specific fields
     name = db.Column(db.String(150))
-    email = db.Column(db.String(150), unique=True)
+    email = db.Column(db.String(150), unique=True, nullable=True)
     phone = db.Column(db.String(50))
     company = db.Column(db.String(150))
     address = db.Column(db.String(250))
@@ -153,30 +153,22 @@ class RFQFile(db.Model):
 
 
 class Bid(db.Model):
-    __tablename__ = 'bids'
+    __tablename__ = "bids"
 
     id = db.Column(db.Integer, primary_key=True)
-    rfq_id = db.Column(db.Integer, db.ForeignKey('rfqs.id'), nullable=False)
-    bidder_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    price = db.Column(db.Integer, nullable=False)
-    timeline = db.Column(db.String(120), nullable=True)  # allow optional
-    qualifications = db.Column(db.Text, nullable=True)
-
-    document_hash = db.Column(db.String(120), nullable=True)
-    onchain_id = db.Column(db.Integer)
-    tx_hash = db.Column(db.String(80))
-
-    status = db.Column(db.String(32), default="submitted")
-
-    # Evaluation
-    phase1_status = db.Column(db.String(20), default="pending")
-    phase1_report = db.Column(db.JSON, default=dict)
-    phase2_status = db.Column(db.String(20), default="pending")
+    rfq_id = db.Column(db.Integer, db.ForeignKey("rfqs.id"), nullable=False)
+    bidder_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    timeline_start = db.Column(db.Date, nullable=False)  # New
+    timeline_end = db.Column(db.Date, nullable=False)    # New
+    qualifications = db.Column(db.Text)
+    status = db.Column(db.String(50), default="submitted")
+    phase1_status = db.Column(db.String(50), default="pending")
+    phase2_status = db.Column(db.String(50), default="pending")
+    phase1_report = db.Column(db.JSON)
+    phase2_breakdown = db.Column(db.JSON)
     phase2_score = db.Column(db.Float)
-    phase2_breakdown = db.Column(db.JSON, default=dict)
-    red_flags = db.Column(db.JSON, default=list)
-
+    red_flags = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     files = db.relationship("BidFile", backref="bid", cascade="all, delete-orphan")
@@ -187,11 +179,9 @@ class Bid(db.Model):
             "rfq_id": self.rfq_id,
             "bidder_id": self.bidder_id,
             "price": self.price,
-            "timeline": self.timeline,
+            "timeline_start": self.timeline_start.isoformat() if self.timeline_start else None,
+            "timeline_end": self.timeline_end.isoformat() if self.timeline_end else None,
             "qualifications": self.qualifications,
-            "document_hash": self.document_hash,
-            "onchain_id": self.onchain_id,
-            "tx_hash": self.tx_hash,
             "status": self.status,
             "phase1_status": self.phase1_status,
             "phase1_report": self.phase1_report,
@@ -199,8 +189,16 @@ class Bid(db.Model):
             "phase2_score": self.phase2_score,
             "phase2_breakdown": self.phase2_breakdown,
             "red_flags": self.red_flags,
-            "created_at": self.created_at.isoformat(),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+        # Optional fields if they exist in your model
+        if hasattr(self, "document_hash"):
+            data["document_hash"] = self.document_hash
+        if hasattr(self, "onchain_id"):
+            data["onchain_id"] = self.onchain_id
+        if hasattr(self, "tx_hash"):
+            data["tx_hash"] = self.tx_hash
+
         if include_files:
             data["files"] = [f.to_dict() for f in self.files]
         return data
